@@ -1,0 +1,16 @@
+├── dataset/
+├── ocr_module/
+├── image_model/
+├── text_model/
+├── fusion_model/
+├── video_module/
+├── evaluation/
+├── results/
+└── report.pdf
+
+✅ Multimodal (Image + Text)
+✅ Pretrained models (BERT + CNN)
+✅ Clear architecture diagram
+✅ Proper evaluation metrics
+✅ Limitations + ethics
+✅ Extension to video
