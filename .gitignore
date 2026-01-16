@@ -1,0 +1,26 @@
+# Datasets
+dataset/
+data/
+videos/
+frames/
+
+# Model files
+*.pt
+*.pth
+*.h5
+*.ckpt
+
+# Logs and outputs
+logs/
+results/
+outputs/
+
+# Environment
+venv/
+.env
+__pycache__/
+
+# System files
+.DS_Store
+.ipynb_checkpoints/
+
