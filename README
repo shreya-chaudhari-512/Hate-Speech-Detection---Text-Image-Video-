@@ -1,0 +1,119 @@
+# Multimodal Hate Speech Detection in Images and Videos
+
+## Project Overview
+Hate speech present in images and videos such as memes, posters, symbols, and visual cues has become a serious issue on online platforms. Traditional hate speech detection systems focus mainly on text and fail to capture hateful content embedded in visual media.  
+This project proposes a **multimodal deep learning system** to detect hate speech in **images and videos** by jointly analyzing **visual content** and **embedded textual information**.
+
+The system first detects hate speech in images using OCR, computer vision, and natural language processing, and is later extended to videos through frame-level analysis and temporal aggregation.
+
+---
+
+## Objectives
+- Detect hate speech present in images  
+- Extract text from images using OCR  
+- Analyze extracted text using NLP models  
+- Analyze visual content using deep learning models  
+- Fuse image and text features for improved accuracy  
+- Extend the system to detect hate speech in videos  
+
+---
+
+## Key Features
+- Multimodal learning (Image + Text)
+- OCR-based text extraction from images
+- Pretrained deep learning models (CNN / Transformers)
+- Scalable architecture from images to videos
+- Evaluation using robust performance metrics
+
+---
+
+## System Architecture
+
+Input Image / Video  
+↓  
+Frame Extraction (for videos)  
+↓  
+OCR Text Extraction  
+↓  
+Text Feature Extraction (BERT / DistilBERT)  
+↓  
+Image Feature Extraction (CNN / Vision Transformer)  
+↓  
+Feature Fusion  
+↓  
+Classifier  
+↓  
+Hate / Non-Hate Prediction
+
+---
+
+## Project Structure
+
+hate-speech-detection-multimodal/
+- dataset/          : Image and video datasets  
+- ocr_module/       : OCR text extraction  
+- image_model/      : Image-based deep learning models  
+- text_model/       : NLP-based hate speech models  
+- fusion_model/     : Multimodal fusion network  
+- video_module/     : Video frame processing  
+- evaluation/       : Performance metrics and analysis  
+- results/          : Output predictions and graphs  
+- README.md         : Project documentation  
+- requirements.txt : Dependencies  
+
+---
+
+## Datasets Used
+- Hateful Memes Dataset (Facebook AI)
+- MMHS150K (Multimodal Hate Speech Dataset)
+- Optional custom-curated dataset
+
+---
+
+## Technologies Used
+- Python  
+- PyTorch / TensorFlow  
+- OpenCV  
+- Tesseract / EasyOCR  
+- Transformers (BERT / DistilBERT)  
+- Git and GitHub  
+
+---
+
+## Evaluation Metrics
+- Precision  
+- Recall  
+- F1-score  
+- Confusion Matrix  
+
+Accuracy alone is not sufficient due to class imbalance in hate speech datasets.
+
+---
+
+## Results
+The multimodal approach outperforms unimodal models by effectively capturing the relationship between visual context and textual meaning, especially in hateful memes and image-based content.
+
+---
+
+## Limitations
+- OCR errors may affect text extraction
+- Sarcasm and contextual hate are challenging
+- Dataset bias may influence predictions
+
+---
+
+## Future Work
+- Audio-based hate speech detection in videos  
+- Attention-based multimodal fusion  
+- Multiclass hate category classification  
+- Real-time content moderation system  
+
+---
+
+## Author
+Shreya Chaudhari
+
+---
+
+## License
+This project is developed for academic and research purposes.
