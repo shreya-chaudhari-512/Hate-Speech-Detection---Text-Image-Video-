@@ -1,0 +1,9 @@
+numpy
+opencv-python
+pytesseract
+torch
+torchvision
+transformers
+moviepy
+librosa
+scikit-learn
