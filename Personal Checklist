@@ -81,3 +81,9 @@ ORDER ::
 5️⃣ Train image model on GPU
 6️⃣ Extend to video
 7️⃣ Add violence + gore
+
+
+dataset structure :
+hate_txt_001.jpg
+hate_sym_002.jpg
+nonhate_txt_001.jpg
