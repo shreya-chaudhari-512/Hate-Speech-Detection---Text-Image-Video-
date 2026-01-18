@@ -1,0 +1,83 @@
+✅ Recommended Dataset Sizes
+🔹 Image Hate Detection
+
+Total images: 8,000 – 12,000
+
+Train: 70%
+
+Validation: 15%
+
+Test: 15%
+
+Why this works:
+
+Enough for CNN + BERT
+
+Trains in reasonable GPU time
+
+Easy to justify academically
+
+📌 You can say in viva:
+
+“A balanced subset was selected to reduce computational overhead while preserving diversity.”
+
+🔹 Violence / Gore Detection (Frames)
+
+Total frames: 6,000 – 10,000
+
+Classes:
+
+Non-violent
+
+Violent
+
+Gore
+
+You do NOT need 100k frames.
+
+🔹 Video Dataset
+
+Videos: 150 – 300 total
+
+Frame extraction: 1–3 FPS
+
+This is more than enough for a college project.
+
+
+
+2️⃣ GPU TRAINING CHECKLIST (PRINT THIS)
+
+Use this checklist every time you go to the college GPU PC.
+
+🔥 Before Training
+
+✔ Dataset copied
+✔ Repo pulled from GitHub
+✔ Virtual environment created
+✔ GPU detected (nvidia-smi)
+✔ Correct CUDA version
+✔ Batch size adjusted to GPU memory
+
+🔥 During Training
+
+✔ Train on subset first
+✔ Save checkpoints every few epochs
+✔ Log metrics (loss, F1)
+✔ Avoid training overnight without supervision
+
+🔥 After Training
+
+✔ Save model weights
+✔ Save confusion matrix
+✔ Export logs/plots
+✔ Push results to GitHub (NOT datasets)
+
+
+ORDER ::
+1️⃣ Finalize datasets
+2️⃣ Create repo + .gitignore
+3️⃣ Implement image-only pipeline
+4️⃣ Test OCR + text model locally
+5️⃣ Train image model on GPU
+6️⃣ Extend to video
+7️⃣ Add violence + gore
