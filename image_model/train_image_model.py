@@ -1,11 +1,9 @@
 import os
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from torchvision import models, transforms
+from torch.utils.data import DataLoader
+from torchvision import datasets, models, transforms
 from torchvision.models import ResNet18_Weights
-from PIL import Image
-import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 # ---------------- CONFIG ----------------
@@ -15,6 +13,8 @@ IMG_SIZE = 224
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 print(f"🖥️ Using device: {DEVICE}")
+
+DATA_DIR = "dataset/images/image_symbol"
 
 # ---------------- TRANSFORMS ----------------
 train_tfms = transforms.Compose([
@@ -30,32 +30,17 @@ val_tfms = transforms.Compose([
 ])
 
 # ---------------- DATASET ----------------
-class HateImageDataset(Dataset):
-    def __init__(self, csv_file, transform=None):
-        self.data = pd.read_csv(csv_file)
-        self.transform = transform
+full_dataset = datasets.ImageFolder(DATA_DIR, transform=train_tfms)
 
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        img_rel_path = self.data.iloc[idx]["image_path"]
-        label = int(self.data.iloc[idx]["label"])
-
-        img_path = os.path.join("dataset/images", img_rel_path)
-        image = Image.open(img_path).convert("RGB")
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image, torch.tensor(label, dtype=torch.long)
-
-# ---------------- LOAD DATA ----------------
-train_ds = HateImageDataset("dataset/train.csv", train_tfms)
-val_ds = HateImageDataset("dataset/val.csv", val_tfms)
+# Train / Val split
+train_size = int(0.8 * len(full_dataset))
+val_size = len(full_dataset) - train_size
+train_ds, val_ds = torch.utils.data.random_split(full_dataset, [train_size, val_size])
 
 train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False)
+
+print("📂 Classes:", full_dataset.classes)
 
 # ---------------- MODEL ----------------
 weights = ResNet18_Weights.DEFAULT
@@ -69,11 +54,10 @@ for param in model.parameters():
 model.fc = nn.Linear(model.fc.in_features, 2)
 model = model.to(DEVICE)
 
-# ---------------- TRAINING SETUP ----------------
-criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0]).to(DEVICE))
+# ---------------- TRAINING ----------------
+criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3)
 
-# ---------------- TRAIN LOOP ----------------
 for epoch in range(EPOCHS):
     model.train()
     running_loss = 0.0
@@ -89,15 +73,13 @@ for epoch in range(EPOCHS):
 
         running_loss += loss.item()
 
-    avg_loss = running_loss / len(train_loader)
-    print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {avg_loss:.4f}")
+    print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {running_loss/len(train_loader):.4f}")
 
 print("✅ Training complete")
 
 # ---------------- VALIDATION ----------------
 model.eval()
-all_preds = []
-all_labels = []
+all_preds, all_labels = [], []
 
 with torch.no_grad():
     for imgs, labels in val_loader:
@@ -115,7 +97,7 @@ print("\n📊 Validation Accuracy:", round(acc, 3))
 print("📉 Confusion Matrix:")
 print(cm)
 
-# ---------------- SAVE MODEL ----------------
+# ---------------- SAVE ----------------
 os.makedirs("image_model", exist_ok=True)
 torch.save(model.state_dict(), "image_model/image_model.pth")
 
