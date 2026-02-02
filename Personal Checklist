@@ -87,3 +87,21 @@ dataset structure :
 hate_txt_001.jpg
 hate_sym_002.jpg
 nonhate_txt_001.jpg
+
+
+🎯 Action Items
+Today:
+
+✅ Keep using local storage (fastest)
+✅ Use the ImageDatasetManager script
+✅ Metadata in CSV (easy to backup)
+
+This weekend:
+4. ✅ Upload entire raw_images/ folder to Google Drive
+5. ✅ Share folder with teammate
+6. ✅ Continue local + auto-sync with Drive
+After project:
+7. ✅ Clean dataset
+8. ✅ Upload to Kaggle (unlimited free!)
+9. ✅ Upload to Hugging Face
+10. ✅ Cite in your paper
