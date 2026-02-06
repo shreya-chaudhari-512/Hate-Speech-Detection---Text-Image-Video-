@@ -1,10 +1,11 @@
 """
-CLIP (Contrastive Language-Image Pre-training) Model for Image Hate Speech Detection
-Location: image_model/models/clip_model.py
+CLIP Model for Binary Hate Speech Detection
+SAVE AS: image_model/models/clip_model.py
 
-Architecture: Dual-encoder (Vision + Text) Transformer (2021)
-Pros: Understands both images AND text, perfect for memes
-Cons: More complex, requires careful prompt engineering
+CLIP understands BOTH images AND text - perfect for memes!
+Trained on 400 million image-text pairs.
+
+Think of it as: Meme (image+text) → CLIP → [0.05, 0.95] → "Hate!"
 """
 
 import torch
@@ -13,33 +14,25 @@ from transformers import CLIPModel, CLIPProcessor
 
 
 class CLIPHateDetector(nn.Module):
-    """
-    CLIP-based hate speech detector
-    Pre-trained on 400M image-text pairs
-    Perfect for detecting hate in memes (text + image context)
-    """
+    """CLIP for binary classification (hate/non-hate)"""
     
-    def __init__(self, num_categories=3, dropout=0.3, model_name='openai/clip-vit-base-patch32'):
+    def __init__(self, num_classes=2, dropout=0.3, model_name='openai/clip-vit-base-patch32'):
         """
-        Args:
-            num_categories: 3 (gender, religion, caste)
-            dropout: Dropout rate
-            model_name: HuggingFace CLIP model identifier
+        Initialize CLIP model
+        num_classes=2 means binary: [non-hate, hate]
         """
         super(CLIPHateDetector, self).__init__()
         
-        self.num_categories = num_categories
-        self.model_name = model_name
+        print(f"Loading CLIP model: {model_name}")
         
         # Load pre-trained CLIP
-        print(f"Loading CLIP model: {model_name}")
         self.clip = CLIPModel.from_pretrained(model_name)
         self.processor = CLIPProcessor.from_pretrained(model_name)
         
-        # Get embedding dimension
-        self.embed_dim = self.clip.config.projection_dim  # 512 for base
+        # Get embedding dimension (512 for base)
+        self.embed_dim = self.clip.config.projection_dim
         
-        # Custom classification head
+        # Add our custom classification head
         self.classifier = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(self.embed_dim, 512),
@@ -50,38 +43,9 @@ class CLIPHateDetector(nn.Module):
             nn.GELU(),
             nn.LayerNorm(256),
             nn.Dropout(dropout * 0.5),
-            nn.Linear(256, num_categories + 1)  # +1 for binary hate/not-hate
+            nn.Linear(256, num_classes)  # 2 outputs: [non-hate, hate]
         )
         
-        # Hate-related text prompts for zero-shot classification
-        self.hate_prompts = {
-            'gender': [
-                "an image with misogynistic content",
-                "an image with sexist content",
-                "an image showing gender-based hate",
-                "a meme targeting women or LGBTQ+ people"
-            ],
-            'religion': [
-                "an image with religious hate speech",
-                "an image showing religious intolerance",
-                "a meme targeting religious groups",
-                "an image with anti-religious content"
-            ],
-            'caste': [
-                "an image with caste-based discrimination",
-                "an image showing casteist content",
-                "a meme targeting caste groups",
-                "an image with regional stereotypes"
-            ],
-            'normal': [
-                "a normal image",
-                "a neutral meme",
-                "an image without hate speech",
-                "a regular social media post"
-            ]
-        }
-        
-        # Initialize classifier
         self._initialize_weights()
     
     def _initialize_weights(self):
@@ -94,146 +58,58 @@ class CLIPHateDetector(nn.Module):
     
     def forward(self, x):
         """
-        Forward pass using vision encoder only
+        Forward pass
         
-        Args:
-            x: Input tensor [batch_size, 3, 224, 224]
-        
-        Returns:
-            logits: [batch_size, 4] (hate_binary, gender, religion, caste)
+        Input: x = [batch_size, 3, 224, 224]
+        Output: [batch_size, 2] (scores for [non-hate, hate])
         """
-        # Get image embeddings
+        # Get image embeddings from CLIP
         vision_outputs = self.clip.vision_model(pixel_values=x)
-        image_embeds = vision_outputs.pooler_output  # [batch_size, embed_dim]
+        image_embeds = vision_outputs.pooler_output
         
         # Project to shared space
         image_embeds = self.clip.visual_projection(image_embeds)
         
         # Classify
-        logits = self.classifier(image_embeds)  # [batch_size, 4]
-        
+        logits = self.classifier(image_embeds)
         return logits
     
-    def zero_shot_classify(self, x, text_prompts=None):
-        """
-        Zero-shot classification using text prompts
-        This is CLIP's superpower - no training needed!
-        
-        Args:
-            x: Input tensor [batch_size, 3, 224, 224]
-            text_prompts: Optional custom prompts
-        
-        Returns:
-            probs: [batch_size, num_classes] similarity scores
-        """
-        if text_prompts is None:
-            # Use default hate prompts
-            all_prompts = []
-            for category, prompts in self.hate_prompts.items():
-                all_prompts.extend(prompts)
-            text_prompts = all_prompts
-        
-        # Get image embeddings
-        with torch.no_grad():
-            vision_outputs = self.clip.vision_model(pixel_values=x)
-            image_embeds = vision_outputs.pooler_output
-            image_embeds = self.clip.visual_projection(image_embeds)
-            
-            # Normalize
-            image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
-        
-        # Get text embeddings
-        text_inputs = self.processor(
-            text=text_prompts,
-            return_tensors="pt",
-            padding=True
-        ).to(x.device)
-        
-        with torch.no_grad():
-            text_outputs = self.clip.text_model(**text_inputs)
-            text_embeds = text_outputs.pooler_output
-            text_embeds = self.clip.text_projection(text_embeds)
-            
-            # Normalize
-            text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)
-        
-        # Calculate similarity
-        logits_per_image = torch.matmul(image_embeds, text_embeds.t())
-        probs = logits_per_image.softmax(dim=-1)
-        
-        return probs
-    
-    def extract_features(self, x):
-        """Extract features for visualization/analysis"""
-        with torch.no_grad():
-            vision_outputs = self.clip.vision_model(pixel_values=x)
-            image_embeds = vision_outputs.pooler_output
-            image_embeds = self.clip.visual_projection(image_embeds)
-        return image_embeds
-    
     def freeze_backbone(self):
-        """Freeze CLIP backbone, only train classifier"""
+        """Freeze CLIP, only train classifier"""
         for param in self.clip.parameters():
             param.requires_grad = False
-        print("✓ CLIP backbone frozen")
+        print("✓ CLIP backbone frozen - only training classifier")
     
     def unfreeze_backbone(self):
-        """Unfreeze CLIP backbone for fine-tuning"""
+        """Unfreeze CLIP for full fine-tuning"""
         for param in self.clip.parameters():
             param.requires_grad = True
-        print("✓ CLIP backbone unfrozen")
+        print("✓ CLIP backbone unfrozen - training all layers")
     
     def get_model_info(self):
-        """Return model information for comparison"""
+        """Return info about this model"""
         return {
-            'name': 'CLIP (Contrastive Language-Image Pre-training)',
+            'name': 'CLIP',
             'year': 2021,
-            'type': 'Dual-Encoder Transformer (Vision + Text)',
+            'type': 'Dual-Encoder (Vision + Text)',
             'params': sum(p.numel() for p in self.parameters()),
-            'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad),
-            'architecture': 'Vision Transformer + Text Transformer',
-            'pretrained_on': '400M image-text pairs from the internet',
-            'model_variant': self.model_name,
-            'embed_dim': self.embed_dim,
-            'strengths': [
-                'BEST for memes (understands text + image context)',
-                'Pre-trained on image-text pairs (perfect for our task)',
-                'Zero-shot capability (can classify without training)',
-                'Strong multimodal understanding',
-                'Can use text prompts to guide classification',
-                'Excellent at understanding context and nuance'
-            ],
-            'weaknesses': [
-                'Largest model size (~600MB)',
-                'Most computationally expensive',
-                'More complex to fine-tune properly',
-                'May require prompt engineering'
-            ],
-            'unique_features': [
-                'Zero-shot classification',
-                'Text-guided image understanding',
-                'Can use natural language prompts'
-            ]
+            'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad)
         }
 
 
-def create_clip_model(num_categories=3, pretrained=True, freeze_backbone=False):
+def create_clip_model(num_classes=2, pretrained=True, freeze_backbone=False):
     """
     Factory function to create CLIP model
     
     Args:
-        num_categories: Number of hate categories
+        num_classes: 2 for binary
         pretrained: Use pre-trained weights
-        freeze_backbone: If True, only train classifier head
+        freeze_backbone: If True, only train classifier
     
     Returns:
         CLIPHateDetector model
     """
-    if not pretrained:
-        print("⚠ Creating CLIP WITHOUT pre-trained weights (NOT recommended)")
-        print("⚠ CLIP's power comes from its pre-training on 400M image-text pairs")
-    
-    model = CLIPHateDetector(num_categories=num_categories)
+    model = CLIPHateDetector(num_classes=num_classes)
     
     if freeze_backbone:
         model.freeze_backbone()
@@ -241,35 +117,26 @@ def create_clip_model(num_categories=3, pretrained=True, freeze_backbone=False):
     return model
 
 
-# Test function
+# Test if this file works
 if __name__ == "__main__":
-    print("Testing CLIP model...")
+    print("Testing CLIP Model...")
     
-    # Create model
-    model = create_clip_model(num_categories=3, freeze_backbone=False)
+    model = create_clip_model(num_classes=2, freeze_backbone=False)
     
-    # Test forward pass
-    batch_size = 4
-    dummy_input = torch.randn(batch_size, 3, 224, 224)
+    # Create fake input
+    dummy_input = torch.randn(4, 3, 224, 224)
     
-    print("\n--- Standard forward pass ---")
+    # Run through model
     output = model(dummy_input)
-    print(f"Input shape: {dummy_input.shape}")
-    print(f"Output shape: {output.shape}")
     
-    # Test zero-shot classification
-    print("\n--- Zero-shot classification ---")
-    zero_shot_probs = model.zero_shot_classify(dummy_input)
-    print(f"Zero-shot output shape: {zero_shot_probs.shape}")
+    print(f"\nInput shape: {dummy_input.shape}")
+    print(f"Output shape: {output.shape}")  # Should be [4, 2]
+    print(f"Output example: {output[0]}")
     
-    # Model info
+    # Get model info
     info = model.get_model_info()
     print(f"\nModel: {info['name']}")
-    print(f"Total parameters: {info['params']:,}")
-    print(f"Trainable parameters: {info['trainable_params']:,}")
-    print(f"\nUnique features:")
-    for feature in info['unique_features']:
-        print(f"  • {feature}")
+    print(f"Parameters: {info['params']:,}")
     
-    print("\n✓ CLIP model created successfully!")
-    print("\n💡 CLIP is likely the BEST choice for meme detection!")
+    print("\n✅ CLIP model works!")
+    print("\n💡 CLIP is likely best for meme detection!")

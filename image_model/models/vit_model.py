@@ -1,57 +1,50 @@
 """
-Vision Transformer (ViT) Model for Image Hate Speech Detection
-Location: image_model/models/vit_model.py
+Vision Transformer (ViT) Model for Binary Hate Speech Detection
+SAVE AS: image_model/models/vit_model.py
 
-Architecture: Transformer-based (2021)
-Pros: Better global context, state-of-the-art for many vision tasks
-Cons: More computational resources, needs more data
+This is a Transformer (like ChatGPT but for images) from 2021.
+Better at understanding context than old CNNs.
+
+Think of it as: Image → ViT → [0.1, 0.9] → "This is hate (90% confidence)"
 """
 
 import torch
 import torch.nn as nn
-from transformers import ViTModel, ViTConfig
+from transformers import ViTModel
 
 
 class ViTHateDetector(nn.Module):
-    """
-    Vision Transformer-based hate speech detector
-    Pre-trained on ImageNet-21k, fine-tuned for hate detection
-    """
+    """Vision Transformer for binary classification (hate/non-hate)"""
     
-    def __init__(self, num_categories=3, dropout=0.3, model_name='google/vit-base-patch16-224'):
+    def __init__(self, num_classes=2, dropout=0.3, model_name='google/vit-base-patch16-224'):
         """
-        Args:
-            num_categories: 3 (gender, religion, caste)
-            dropout: Dropout rate
-            model_name: HuggingFace model identifier
+        Initialize ViT model
+        num_classes=2 means binary: [non-hate, hate]
         """
         super(ViTHateDetector, self).__init__()
         
-        self.num_categories = num_categories
-        self.model_name = model_name
-        
-        # Load pre-trained ViT
         print(f"Loading ViT model: {model_name}")
+        
+        # Load pre-trained Vision Transformer
         self.vit = ViTModel.from_pretrained(model_name)
         
-        # Get hidden size
-        self.hidden_size = self.vit.config.hidden_size  # 768 for base
+        # Get hidden size (768 for base model)
+        self.hidden_size = self.vit.config.hidden_size
         
-        # Custom classification head
+        # Add our custom classification head
         self.classifier = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(self.hidden_size, 512),
-            nn.GELU(),  # ViT uses GELU activation
+            nn.GELU(),  # Activation function
             nn.LayerNorm(512),
             nn.Dropout(dropout * 0.5),
             nn.Linear(512, 256),
             nn.GELU(),
             nn.LayerNorm(256),
             nn.Dropout(dropout * 0.5),
-            nn.Linear(256, num_categories + 1)  # +1 for binary hate/not-hate
+            nn.Linear(256, num_classes)  # 2 outputs: [non-hate, hate]
         )
         
-        # Initialize classifier weights
         self._initialize_weights()
     
     def _initialize_weights(self):
@@ -66,92 +59,55 @@ class ViTHateDetector(nn.Module):
         """
         Forward pass
         
-        Args:
-            x: Input tensor [batch_size, 3, 224, 224]
-        
-        Returns:
-            logits: [batch_size, 4] (hate_binary, gender, religion, caste)
+        Input: x = [batch_size, 3, 224, 224]
+        Output: [batch_size, 2] (scores for [non-hate, hate])
         """
-        # ViT forward pass
+        # ViT processes image and gives us features
         outputs = self.vit(pixel_values=x)
         
-        # Use [CLS] token representation (first token)
-        cls_token = outputs.last_hidden_state[:, 0, :]  # [batch_size, hidden_size]
+        # Use [CLS] token (first token) as image representation
+        cls_token = outputs.last_hidden_state[:, 0, :]
         
         # Classify
-        logits = self.classifier(cls_token)  # [batch_size, 4]
-        
+        logits = self.classifier(cls_token)
         return logits
     
-    def extract_features(self, x):
-        """Extract features for visualization/analysis"""
-        with torch.no_grad():
-            outputs = self.vit(pixel_values=x)
-            cls_token = outputs.last_hidden_state[:, 0, :]
-        return cls_token
-    
     def freeze_backbone(self):
-        """Freeze ViT backbone, only train classifier"""
+        """Freeze ViT, only train classifier (faster training)"""
         for param in self.vit.parameters():
             param.requires_grad = False
-        print("✓ ViT backbone frozen")
+        print("✓ ViT backbone frozen - only training classifier")
     
     def unfreeze_backbone(self):
-        """Unfreeze ViT backbone for fine-tuning"""
+        """Unfreeze ViT for full fine-tuning"""
         for param in self.vit.parameters():
             param.requires_grad = True
-        print("✓ ViT backbone unfrozen")
+        print("✓ ViT backbone unfrozen - training all layers")
     
     def get_model_info(self):
-        """Return model information for comparison"""
+        """Return info about this model"""
         return {
             'name': 'Vision Transformer (ViT)',
             'year': 2021,
             'type': 'Transformer',
             'params': sum(p.numel() for p in self.parameters()),
-            'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad),
-            'architecture': 'Transformer encoder with patch embeddings',
-            'pretrained_on': 'ImageNet-21k (14M images, 21k classes)',
-            'model_variant': self.model_name,
-            'hidden_size': self.hidden_size,
-            'strengths': [
-                'Better global context understanding',
-                'State-of-the-art performance on many tasks',
-                'Attention mechanism captures relationships',
-                'Better for complex scenes (like memes)',
-                'Can attend to both text and visual elements'
-            ],
-            'weaknesses': [
-                'Requires more computational resources',
-                'Slower inference than CNNs',
-                'May need more training data',
-                'Larger model size (~340MB vs ~100MB for ResNet)'
-            ]
+            'trainable_params': sum(p.numel() for p in self.parameters() if p.requires_grad)
         }
 
 
-def create_vit_model(num_categories=3, pretrained=True, freeze_backbone=False):
+def create_vit_model(num_classes=2, pretrained=True, freeze_backbone=False):
     """
     Factory function to create ViT model
     
     Args:
-        num_categories: Number of hate categories
-        pretrained: Use ImageNet pre-trained weights
-        freeze_backbone: If True, only train classifier head
+        num_classes: 2 for binary
+        pretrained: Use pre-trained weights
+        freeze_backbone: If True, only train classifier (faster)
     
     Returns:
         ViTHateDetector model
     """
-    if not pretrained:
-        print("⚠ Creating ViT WITHOUT pre-trained weights (not recommended)")
-        model = ViTHateDetector(
-            num_categories=num_categories,
-            model_name='google/vit-base-patch16-224'
-        )
-        # Reinitialize ViT weights
-        model.vit.apply(lambda m: m.reset_parameters() if hasattr(m, 'reset_parameters') else None)
-    else:
-        model = ViTHateDetector(num_categories=num_categories)
+    model = ViTHateDetector(num_classes=num_classes)
     
     if freeze_backbone:
         model.freeze_backbone()
@@ -159,35 +115,25 @@ def create_vit_model(num_categories=3, pretrained=True, freeze_backbone=False):
     return model
 
 
-# Test function
+# Test if this file works
 if __name__ == "__main__":
-    print("Testing ViT model...")
+    print("Testing ViT Model...")
     
-    # Create model
-    model = create_vit_model(num_categories=3, freeze_backbone=False)
+    model = create_vit_model(num_classes=2, freeze_backbone=False)
     
-    # Test forward pass
-    batch_size = 4
-    dummy_input = torch.randn(batch_size, 3, 224, 224)
+    # Create fake input
+    dummy_input = torch.randn(4, 3, 224, 224)
     
+    # Run through model
     output = model(dummy_input)
-    print(f"\nInput shape: {dummy_input.shape}")
-    print(f"Output shape: {output.shape}")
     
-    # Model info
+    print(f"\nInput shape: {dummy_input.shape}")
+    print(f"Output shape: {output.shape}")  # Should be [4, 2]
+    print(f"Output example: {output[0]}")
+    
+    # Get model info
     info = model.get_model_info()
     print(f"\nModel: {info['name']}")
-    print(f"Total parameters: {info['params']:,}")
-    print(f"Trainable parameters: {info['trainable_params']:,}")
+    print(f"Parameters: {info['params']:,}")
     
-    # Test freezing
-    print("\n--- Testing backbone freezing ---")
-    model.freeze_backbone()
-    frozen_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable params after freezing: {frozen_trainable:,}")
-    
-    model.unfreeze_backbone()
-    unfrozen_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable params after unfreezing: {unfrozen_trainable:,}")
-    
-    print("\n✓ ViT model created successfully!")
+    print("\n✅ ViT model works!")

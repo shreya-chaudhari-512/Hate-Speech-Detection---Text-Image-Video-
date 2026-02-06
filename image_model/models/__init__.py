@@ -1,6 +1,9 @@
 """
-Model Factory - Easy access to all models
-Location: image_model/models/__init__.py
+Model Factory - Easy model creation
+SAVE AS: image_model/models/__init__.py
+
+This makes it super easy to create any model.
+Instead of complex code, just: create_model('resnet')
 """
 
 from .resnet_model import ResNetHateDetector, create_resnet_model
@@ -8,106 +11,68 @@ from .vit_model import ViTHateDetector, create_vit_model
 from .clip_model import CLIPHateDetector, create_clip_model
 
 
-def create_model(model_type='resnet', num_categories=3, pretrained=True, freeze_backbone=False):
+def create_model(model_type='resnet', num_classes=2, pretrained=True, freeze_backbone=False):
     """
-    Factory function to create any model
+    Create any model with one line of code!
     
     Args:
         model_type: 'resnet', 'vit', or 'clip'
-        num_categories: Number of hate categories (3)
-        pretrained: Use pre-trained weights
-        freeze_backbone: Only train classifier head
+        num_classes: 2 for binary (hate/non-hate)
+        pretrained: Use pre-trained weights (always True for best results)
+        freeze_backbone: Only train classifier (faster training)
     
     Returns:
-        Model instance
+        Model ready to train
+    
+    Example:
+        model = create_model('resnet')  # That's it!
     """
+    
     model_type = model_type.lower()
     
-    if model_type == 'resnet' or model_type == 'resnet50':
-        return create_resnet_model(num_categories, pretrained)
+    if model_type in ['resnet', 'resnet50']:
+        return create_resnet_model(num_classes, pretrained)
     
-    elif model_type == 'vit' or model_type == 'vit-base':
-        return create_vit_model(num_categories, pretrained, freeze_backbone)
+    elif model_type in ['vit', 'vit-base']:
+        return create_vit_model(num_classes, pretrained, freeze_backbone)
     
     elif model_type == 'clip':
-        return create_clip_model(num_categories, pretrained, freeze_backbone)
+        return create_clip_model(num_classes, pretrained, freeze_backbone)
     
     else:
-        raise ValueError(f"Unknown model type: {model_type}. Choose 'resnet', 'vit', or 'clip'")
+        raise ValueError(f"Unknown model: {model_type}. Choose 'resnet', 'vit', or 'clip'")
 
 
 def compare_models_info():
-    """
-    Print comparison of all three models
-    """
-    print("\n" + "="*80)
+    """Print comparison of all three models"""
+    
+    print("\n" + "="*70)
     print("MODEL COMPARISON")
-    print("="*80 + "\n")
+    print("="*70 + "\n")
     
-    models_info = []
+    models = {
+        'ResNet50': create_resnet_model(),
+        'ViT': create_vit_model(),
+        'CLIP': create_clip_model()
+    }
     
-    # Get info from each model
-    for model_name in ['resnet', 'vit', 'clip']:
-        print(f"Loading {model_name.upper()}...")
-        try:
-            model = create_model(model_name, pretrained=True)
-            info = model.get_model_info()
-            models_info.append(info)
-            print(f"✓ {model_name.upper()} loaded\n")
-        except Exception as e:
-            print(f"✗ Error loading {model_name}: {e}\n")
-    
-    # Print comparison table
-    print("\n" + "="*80)
-    print("QUICK COMPARISON")
-    print("="*80)
-    
-    for info in models_info:
-        print(f"\n{info['name']} ({info['year']})")
+    for name, model in models.items():
+        info = model.get_model_info()
+        print(f"{name}:")
         print(f"  Type: {info['type']}")
+        print(f"  Year: {info['year']}")
         print(f"  Parameters: {info['params']:,}")
-        print(f"  Architecture: {info['architecture']}")
-        print(f"  Pre-trained on: {info['pretrained_on']}")
-        
-        print(f"\n  ✅ Strengths:")
-        for strength in info['strengths']:
-            print(f"     • {strength}")
-        
-        print(f"\n  ⚠️ Weaknesses:")
-        for weakness in info['weaknesses']:
-            print(f"     • {weakness}")
-        
-        print("\n" + "-"*80)
+        print()
     
-    # Recommendation
-    print("\n" + "="*80)
-    print("RECOMMENDATION FOR HATE SPEECH DETECTION (MEMES)")
-    print("="*80)
-    print("""
-🥇 BEST: CLIP
-   - Specifically designed for image-text understanding
-   - Pre-trained on 400M image-text pairs
-   - Can use zero-shot classification with text prompts
-   - Best for memes where context matters
-   
-🥈 GOOD: ViT (Vision Transformer)
-   - Modern architecture with better context understanding
-   - Good if you have enough training data
-   - Better than ResNet for complex scenes
-   
-🥉 BASELINE: ResNet50
-   - Fast and reliable baseline
-   - Good for pure visual content
-   - Easier to train with limited data
-   
-💡 Strategy: Test all three, compare results, justify choice with data!
-    """)
-    print("="*80 + "\n")
+    print("="*70)
+    print("\n💡 Recommendation: CLIP is likely best for memes!")
+    print("   But we'll train all 3 and compare results.\n")
 
 
+# Export everything
 __all__ = [
     'ResNetHateDetector',
-    'ViTHateDetector', 
+    'ViTHateDetector',
     'CLIPHateDetector',
     'create_model',
     'create_resnet_model',
@@ -115,3 +80,23 @@ __all__ = [
     'create_clip_model',
     'compare_models_info'
 ]
+
+
+# Test
+if __name__ == "__main__":
+    print("Testing Model Factory...")
+    
+    # Create each model easily
+    resnet = create_model('resnet')
+    print("✓ Created ResNet")
+    
+    vit = create_model('vit')
+    print("✓ Created ViT")
+    
+    clip = create_model('clip')
+    print("✓ Created CLIP")
+    
+    print("\n✅ Model factory works!")
+    
+    # Show comparison
+    compare_models_info()
