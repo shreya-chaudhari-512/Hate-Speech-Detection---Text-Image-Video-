@@ -14,3 +14,36 @@
 ✅ Proper evaluation metrics
 ✅ Limitations + ethics
 ✅ Extension to video
+
+video pipeline 
+Input video
+      │
+      ├── Frame extraction (OpenCV)
+      │     → extract 1 frame every 2 seconds
+      │     → run each frame through full image pipeline
+      │     → get hate_score + label + timestamp
+      │
+      ├── Audio extraction (moviepy)
+      │     → rip audio track from video
+      │     → convert to wav
+      │     → SpeechRecognition → transcribe to text
+      │     → run transcript through HateBERT
+      │     → get audio hate_score
+      │
+      └── Text overlay extraction (EasyOCR on frames)
+            → already done as part of frame pipeline
+            → each frame auto-routed to text or symbol branch
+                        │
+                        ▼
+               Fusion aggregator
+               → frame scores   (weight: 0.5)
+               → audio score    (weight: 0.3)
+               → text scores    (weight: 0.2)
+               → overall verdict
+                        │
+                        ▼
+               Streamlit report
+               → timeline chart
+               → flagged thumbnails
+               → transcript with highlighted hate segments
+               → final verdict + confidence
